@@ -1,0 +1,6 @@
+# builds and compiled stuff
+/target/
+/releases/
+
+Cargo.lock
+**/*.rs.bk
