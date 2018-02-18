@@ -3,6 +3,7 @@
 use std::fmt;
 use std::cmp::Ordering;
 
+#[derive(Hash)]
 pub enum VersionPart {
   Number(u8),
   Wildcard(String)

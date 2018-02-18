@@ -9,6 +9,7 @@ use versionpart::VersionPart;
 
 static VERSION_REGEX_STRING : &str = r"([1234567890\*]+)[.|-|_]([1234567890\*]+)[.|-|_]([1234567890\*]+)";
 
+#[derive(Hash)]
 pub struct Version {
   major : VersionPart,
   minor : VersionPart,
@@ -21,6 +22,8 @@ impl PartialEq for Version {
     self.major == other.major && self.minor == other.minor && self.patch == other.patch
   }
 }
+
+impl Eq for Version { }
 
 impl PartialOrd for Version {
   fn partial_cmp(&self, other : &Version) -> Option<Ordering> {
