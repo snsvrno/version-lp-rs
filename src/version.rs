@@ -9,7 +9,7 @@ use versionpart::VersionPart;
 
 static VERSION_REGEX_STRING : &str = r"([1234567890\*]+)[.|-|_]([1234567890\*]+)[.|-|_]([1234567890\*]+)";
 
-#[derive(Hash)]
+#[derive(Hash,Serialize, Deserialize)]
 pub struct Version {
   major : VersionPart,
   minor : VersionPart,
