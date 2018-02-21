@@ -273,5 +273,14 @@ mod tests {
     assert_eq!(super::Version::new(1,0,0),ver1);
   }
 
+  #[test]
+  fn serde() {
+    use serde_test::{Token, assert_tokens};
+
+    let version = super::Version::from_str("0.1.2").unwrap();
+    assert_tokens(&version,&[Token::Str("0_1_2")]);
+
+  }
+
 
 }

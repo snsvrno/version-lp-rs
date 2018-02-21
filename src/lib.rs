@@ -6,3 +6,6 @@ extern crate serde;
 
 mod versionpart;
 pub mod version;
+
+#[cfg(test)]
+extern crate serde_test;
