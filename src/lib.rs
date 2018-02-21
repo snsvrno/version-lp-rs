@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate regex;
+extern crate serde;
 
 mod versionpart;
 pub mod version;

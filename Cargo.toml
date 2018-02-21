@@ -6,4 +6,5 @@ authors = ["snsvrno <snsvrno@tuta.io>"]
 [dependencies]
 regex = "0.2.5"
 serde = "1.0.27"
+serde_test = "1.0.27"
 serde_derive = "1.0.27"

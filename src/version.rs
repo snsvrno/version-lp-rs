@@ -4,12 +4,15 @@ use std::fmt;
 use std::cmp::Ordering;
 
 use regex::Regex;
+use serde;
+
+use std::marker::PhantomData;
 
 use versionpart::VersionPart;
 
 static VERSION_REGEX_STRING : &str = r"([1234567890\*]+)[.|-|_]([1234567890\*]+)[.|-|_]([1234567890\*]+)";
 
-#[derive(Hash,Serialize, Deserialize)]
+#[derive(Hash)]
 pub struct Version {
   major : VersionPart,
   minor : VersionPart,
@@ -174,7 +177,49 @@ impl Version {
     //! returns a string formated as "major.minor.patch"
     format!("{}.{}.{}",self.major,self.minor,self.patch)
   }
+
+  pub fn to_string_serializer(&self) -> String {
+    format!("{}_{}_{}",self.major,self.minor,self.patch)
+  }
 }
+
+impl serde::Serialize for Version {
+  fn serialize<S>(&self,serializer : S) -> Result<S::Ok, S::Error> where S : serde::Serializer {
+    serializer.serialize_str(&self.to_string_serializer())
+  }
+}
+
+impl <'de> serde::Deserialize<'de> for Version {
+  fn deserialize<D>(deserializer : D) -> Result<Version, D::Error> where D : serde::Deserializer<'de> {
+    deserializer.deserialize_str(VersionVisitor::new())
+  }
+}
+
+struct VersionVisitor {
+  marker: PhantomData<fn() -> Version>
+}
+
+impl VersionVisitor {
+  fn new() -> Self {
+    VersionVisitor {
+      marker : PhantomData
+    }
+  }
+}
+
+impl <'de>serde::de::Visitor<'de> for VersionVisitor {
+  type Value = Version;
+
+  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    formatter.write_str("version")
+  }
+
+  fn visit_str<A>(self, string:&str) -> Result<Self::Value, A> {
+    if let Some(version) = Version::from_str(string) { Ok(version) } 
+    else { Ok(Version::from_str("0.0.0").unwrap()) }
+  }
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TESTS GO HERE
