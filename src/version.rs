@@ -133,6 +133,35 @@ impl Version {
     Some(list_of_versions.remove(selected))
   }
 
+  pub fn latest_compatible<'a>(&self,list : &'a Vec<String>) -> Option<&'a str> {
+    let mut latest = 0;
+    for i in 1..list.len() {
+      if let Some(ver) = Version::from_str(&list[i]){
+        if self.is_compatible_with(&ver) { 
+          let ver_latest = Version::from_str(&list[latest]).unwrap();
+          if ver_latest < ver {
+            latest = i; 
+          }
+        }
+      }
+    }
+
+    if list.len() > 0 { Some(&list[latest]) } else { None } 
+  }
+
+  pub fn latest_compatible_version<'a>(&self,list : &'a Vec<Version>) -> Option<&'a Version> {
+    let mut latest = 0;
+    for i in 1..list.len() {
+      if self.is_compatible_with(&list[i]) { 
+        if &list[latest] < &list[i] {
+          latest = i; 
+        }
+      }
+    }
+
+    if list.len() > 0 { Some(&list[latest]) } else { None } 
+  }
+
   // checking functions, to get general booleans
   pub fn has_wildcards(&self) -> bool { 
     //! checks if the version has a wildcard in it
