@@ -137,7 +137,7 @@ impl Version {
     let mut latest = 0;
     for i in 1..list.len() {
       if let Some(ver) = Version::from_str(&list[i]){
-        if self.is_compatible_with(&ver) { 
+        if ver.is_compatible_with(&self) { 
           let ver_latest = Version::from_str(&list[latest]).unwrap();
           if ver_latest < ver {
             latest = i; 
@@ -152,7 +152,7 @@ impl Version {
   pub fn latest_compatible_version<'a>(&self,list : &'a Vec<Version>) -> Option<&'a Version> {
     let mut latest = 0;
     for i in 1..list.len() {
-      if self.is_compatible_with(&list[i]) { 
+      if list[i].is_compatible_with(&self) { 
         if &list[latest] < &list[i] {
           latest = i; 
         }
@@ -267,6 +267,30 @@ mod tests {
     assert_eq!(super::Version::from_str("1233.11.0").unwrap().is_compatible_with(&super::Version::from_str("*").unwrap()),true);
     assert_eq!(super::Version::from_str("2.1.0").unwrap().is_compatible_with(&super::Version::from_str("2.1.1").unwrap()),false);
     assert_eq!(super::Version::from_str("1.1.*").unwrap().is_compatible_with(&super::Version::from_str("1.*.*").unwrap()),false);
+  }
+
+  #[test]
+  fn version_comparisons() {
+    assert_eq!(super::Version::from_str("1.1.0").unwrap() < super::Version::from_str("1.0.0").unwrap(),false);
+    assert_eq!(super::Version::from_str("1.2.0").unwrap() < super::Version::from_str("1.3.1").unwrap(),true);
+    assert_eq!(super::Version::from_str("2.3.2").unwrap() > super::Version::from_str("1.4.8").unwrap(),true);
+    assert_eq!(super::Version::from_str("1.10.2").unwrap() < super::Version::from_str("1.4.22").unwrap(),false);
+  }
+
+  #[test]
+  fn latest_compatible() {
+    let versions : Vec<String> = vec!["1.0.1".to_string(),"1.0.2".to_string(),"1.1.0".to_string(),"1.0.0".to_string()];
+    let version = Version::from_str("1.*.*").unwrap();
+
+    assert_eq!(version.latest_compatible(&versions).unwrap().to_string(),"1.1.0".to_string());
+  }
+
+  #[test]
+  fn latest_compatible_version() {
+    let versions : Vec<Version> = vec![Version::from_str("1.0.0").unwrap(),Version::from_str("1.0.1").unwrap(),Version::from_str("1.0.2").unwrap(),Version::from_str("1.1.0").unwrap()];
+    let version = Version::from_str("1.*.*").unwrap();
+
+    assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
   }
 
   #[test]
