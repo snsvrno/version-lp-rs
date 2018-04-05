@@ -171,6 +171,11 @@ impl Version {
     //! checks if the version is all numbers
     self.major.is_number() && self.minor.is_number() && self.patch.is_number()
   }
+
+  pub fn is_wildcard(&self) -> bool {
+    //! returns true if 100% wild
+    self.major.is_wildcard() && self.minor.is_wildcard() && self.patch.is_wildcard()
+  }
   
   pub fn is_compatible_with(&self,other : &Version) -> bool {
     //! checks compatibility between versions
@@ -180,6 +185,7 @@ impl Version {
     // if the version number is a wildcard, it can not be compatible with anything else,
     // compatibility is only for compairing real numbers against other real or wildcard numbers
     if self.has_wildcards() { return false; }
+    if other.is_wildcard() { return true; }
 
     // same version so it is compatible
     if self == other { return true; }
@@ -259,22 +265,22 @@ mod tests {
 
   #[test]
   fn version_is_compatible_with() {
-    assert_eq!(super::Version::from_str("0.1.0").unwrap().is_compatible_with(&super::Version::from_str("0.*.*").unwrap()),true);
-    assert_eq!(super::Version::from_str("4.1.0").unwrap().is_compatible_with(&super::Version::from_str("4.*.*").unwrap()),true);
-    assert_eq!(super::Version::from_str("1.2.0").unwrap().is_compatible_with(&super::Version::from_str("1.1.*").unwrap()),false);
-    assert_eq!(super::Version::from_str("11.1.*").unwrap().is_compatible_with(&super::Version::from_str("11.1.4").unwrap()),false);
-    assert_eq!(super::Version::from_str("1.1.0").unwrap().is_compatible_with(&super::Version::from_str("1.1.0").unwrap()),true);
-    assert_eq!(super::Version::from_str("1233.11.0").unwrap().is_compatible_with(&super::Version::from_str("*").unwrap()),true);
-    assert_eq!(super::Version::from_str("2.1.0").unwrap().is_compatible_with(&super::Version::from_str("2.1.1").unwrap()),false);
-    assert_eq!(super::Version::from_str("1.1.*").unwrap().is_compatible_with(&super::Version::from_str("1.*.*").unwrap()),false);
+    assert!(super::Version::from_str("0.1.0").unwrap().is_compatible_with(&super::Version::from_str("0.*.*").unwrap()));
+    assert!(super::Version::from_str("4.1.0").unwrap().is_compatible_with(&super::Version::from_str("4.*.*").unwrap()));
+    assert!(!super::Version::from_str("1.2.0").unwrap().is_compatible_with(&super::Version::from_str("1.1.*").unwrap()));
+    assert!(!super::Version::from_str("11.1.*").unwrap().is_compatible_with(&super::Version::from_str("11.1.4").unwrap()));
+    assert!(super::Version::from_str("1.1.0").unwrap().is_compatible_with(&super::Version::from_str("1.1.0").unwrap()));
+    assert!(!super::Version::from_str("2.1.0").unwrap().is_compatible_with(&super::Version::from_str("2.1.1").unwrap()));
+    assert!(!super::Version::from_str("1.1.*").unwrap().is_compatible_with(&super::Version::from_str("1.*.*").unwrap()));
+    assert!(super::Version::from_str("21.11.0").unwrap().is_compatible_with(&super::Version::from_str("*").unwrap()));
   }
 
   #[test]
   fn version_comparisons() {
-    assert_eq!(super::Version::from_str("1.1.0").unwrap() < super::Version::from_str("1.0.0").unwrap(),false);
-    assert_eq!(super::Version::from_str("1.2.0").unwrap() < super::Version::from_str("1.3.1").unwrap(),true);
-    assert_eq!(super::Version::from_str("2.3.2").unwrap() > super::Version::from_str("1.4.8").unwrap(),true);
-    assert_eq!(super::Version::from_str("1.10.2").unwrap() < super::Version::from_str("1.4.22").unwrap(),false);
+    assert!(super::Version::from_str("1.1.0").unwrap() > super::Version::from_str("1.0.0").unwrap());
+    assert!(super::Version::from_str("1.2.0").unwrap() < super::Version::from_str("1.3.1").unwrap());
+    assert!(super::Version::from_str("2.3.2").unwrap() > super::Version::from_str("1.4.8").unwrap());
+    assert!(super::Version::from_str("1.10.2").unwrap() > super::Version::from_str("1.4.22").unwrap());
   }
 
   #[test]
@@ -297,16 +303,16 @@ mod tests {
   fn versionpart_is_number() {
     let vp = super::VersionPart::Number(12);
     let vp2 = super::VersionPart::Wildcard("*".to_string());
-    assert_eq!(vp.is_number(),true);
-    assert_eq!(vp2.is_number(),false);
+    assert!(vp.is_number());
+    assert!(!vp2.is_number());
   }
 
   #[test]
   fn versionpart_is_wildcard() {
     let vp = super::VersionPart::Number(12);
     let vp2 = super::VersionPart::Wildcard("*".to_string());
-    assert_eq!(vp.is_wildcard(),false);
-    assert_eq!(vp2.is_wildcard(),true);
+    assert!(!vp.is_wildcard());
+    assert!(vp2.is_wildcard());
   }
 
   #[test]
@@ -314,10 +320,10 @@ mod tests {
     let vp = super::VersionPart::Number(14);
     let vp2 = super::VersionPart::Number(65);
     let vp3 = super::VersionPart::Wildcard("*".to_string());
-    assert_eq!(vp == super::VersionPart::Number(14),true);
-    assert_eq!(vp2 == super::VersionPart::Number(65),true);
-    assert_eq!(vp2 == vp,false);
-    assert_eq!(vp == vp3,false);
+    assert!(vp == super::VersionPart::Number(14));
+    assert!(vp2 == super::VersionPart::Number(65));
+    assert!(vp2 != vp);
+    assert!(vp != vp3);
   }
 
   #[test]
