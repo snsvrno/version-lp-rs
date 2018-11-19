@@ -1,10 +1,8 @@
-# Version-LP-RS
+# version-lp-rs
 A rust library for dealing with versions designed to be used with lovepack tools.
 
 ## Overview
-Contains a custom version ***Struct*** that is based on the [Semantic Versioning System](https://semver.org/). Only supports the `a.b.c` format.
-
-Also has support for wildcards when compairing `Versions` together.
+Contains a custom version ***Struct*** that is based on the [Semantic Versioning System](https://semver.org/). Only supports the `a.b.c` format, but with any number of points, i.e. `a.b`, `a.b.c.d` are also valid versions. Also has support for wildcards when compairing `Versions`.
 
 ```rust
 
@@ -28,7 +26,9 @@ ver_a == ver_c // true
 
 ```
 
-As a final note, you cannot compare against patterns, patterns can only be checked using the `is_compatible_with` function.
+## Notes for Success
+- You cannot compare against patterns, patterns can only be checked using the `is_compatible_with` function.
+- Wildcards will be assumed when compairing different length version numbers. `1.2` will be compatible with `1.2.3`
 
 ## Pattern Matching
 Currently the only wildcard supported is `*`.

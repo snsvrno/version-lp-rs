@@ -4,3 +4,6 @@
 
 Cargo.lock
 **/*.rs.bk
+
+# other things
+commit-notes
