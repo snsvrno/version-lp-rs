@@ -26,9 +26,25 @@ ver_a == ver_c // true
 
 ```
 
+You can also get the latest available version from a list.
+
+```rust
+let versions : Vec<Version> = vec![
+    Version::from_str("1.0.0").unwrap(),
+    Version::from_str("1.0.1").unwrap(),
+    Version::from_str("1.1.0").unwrap(),
+    Version::from_str("1.0.2").unwrap()
+];
+
+let requirement = Version::from_str("1").unwrap();
+
+let version = requirement.latest_compatible_version(&versions); // would be Version (1.1.0)
+
+```
+
 ## Notes for Success
 - You cannot compare against patterns, patterns can only be checked using the `is_compatible_with` function.
 - Wildcards will be assumed when compairing different length version numbers. `1.2` will be compatible with `1.2.3`
 
 ## Pattern Matching
-Currently the only wildcard supported is `*`.
+Currently the only wildcard supported is `*`. But `^` can be achieved by using short versions: `1.2` would match with `1.2.1` to `1.2.100` and would return the latest version in a list using `::latest_compatible_version`.

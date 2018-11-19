@@ -400,6 +400,7 @@ mod tests {
         let version = Version::from_str("1.*.*").unwrap();
 
         assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
+        assert_eq!(Version::new(&[1]).latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
     }
 
     #[test]
