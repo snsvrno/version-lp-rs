@@ -1,6 +1,6 @@
 [package]
 name = "version-lp"
-version = "0.2.0"
+version = "0.2.1"
 description = "a version struct library for use with version comparing, and wildcard resolving"
 authors = ["snsvrno <snsvrno@tuta.io>"]
 license = "MIT"

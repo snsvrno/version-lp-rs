@@ -42,8 +42,9 @@ impl PartialEq for Version {
 
 impl Eq for Version { }
 
-impl PartialOrd for Version {
-    fn partial_cmp(&self, other : &Version) -> Option<Ordering> {
+
+impl std::cmp::Ord for Version {
+    fn cmp(&self, other : &Version) -> Ordering {
         let depth : usize = Version::get_shared_depth(&self, other);
 
         // checks each parts, drilling down deeper in the version
@@ -54,12 +55,18 @@ impl PartialOrd for Version {
             if self.parts[i] != other.parts[i] {
                 // if they are not equal then we compare those parts
                 // we only need to do this once and then return it
-                return Some(self.parts[i].cmp(&other.parts[i]));
+                return self.parts[i].cmp(&other.parts[i]);
             }
         }
         
         // we should never get here unless the two are the same ..
-        Some(Ordering::Equal)
+        Ordering::Equal
+    }
+}
+
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other : &Version) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -76,6 +83,7 @@ impl fmt::Display for Version {
         write!(f, "Version ({})",self.to_string())
     }
 }
+
 
 impl Version {
 
@@ -346,6 +354,23 @@ mod tests {
         // this test will be for when the 'behavior change' is implemented
         // that adds strick version checking, no assumed wildcards.
         // assert_eq!(false,V::new(&[22,3,56]) >= V::new(&[22,3,56,223]));
+    }
+
+    #[test]
+    fn sorting() {
+        let mut vector = vec![
+            super::Version::new(&[1,4,5]),
+            super::Version::new(&[1,0,5]),
+            super::Version::new(&[0,4,5]),
+            super::Version::new(&[0,9,5]),
+            super::Version::new(&[3,0,5])
+        ];
+
+        vector.sort();
+
+        assert_eq!(vector[0],super::Version::new(&[0,4,5]));
+        assert_eq!(vector[4],super::Version::new(&[3,0,5]));
+        assert_eq!(vector[3],super::Version::new(&[1,4,5]));
     }
 
     #[test]
