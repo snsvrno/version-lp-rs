@@ -3,6 +3,8 @@
 use std::fmt;
 use std::cmp::Ordering;
 
+use serde::{ Deserialize, Serialize };
+
 #[derive(Hash,Serialize, Deserialize)]
 pub enum VersionPart {
   Number(u8),

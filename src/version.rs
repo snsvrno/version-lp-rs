@@ -8,7 +8,7 @@ use serde;
 
 use std::marker::PhantomData;
 
-use versionpart::VersionPart;
+use crate::versionpart::VersionPart;
 
 static VERSION_REGEX_STRING : &str = r"(?P<v>[1234567890\*]+)";
 
