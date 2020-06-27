@@ -116,13 +116,9 @@ impl Version {
         Version { parts : vec!(VersionPart::Wildcard("*".to_string())) } 
     }
 
-    /// creates a version from a string with a custom regex string.
+    /// creates a version from a string with a custom split string.
     ///
-    /// expecting a regex that returns unnamed capture groups and at most 3
-    /// captures since the version string can only have 3 sections.
-    //
-    // the regex is automatically surrounded with `^` and `$` meaning that it will 
-    // only match if it matches the entire string.
+    /// expecting something along the lines of ([0-9]+) ... ($version_string_splitter$)([0-9]+)
     pub fn from_str_with(version : &str, version_string_splitter : &str) -> Option<Version> {
         
         let mut parts : Vec<VersionPart> = Vec::new();
