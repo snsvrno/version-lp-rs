@@ -3,17 +3,11 @@
 use std::fmt;
 use std::cmp::Ordering;
 
-use regex::Regex;
 use serde;
 
 use std::marker::PhantomData;
 
 use crate::versionpart::VersionPart;
-
-/// the default regex for parsing strings.
-static VERSION_REGEX_STRING : &str = r"([0-9]+|\*)(?:\.([0-9]+|\*))?(?:\.([0-9]+|\*))?";
-/// a special regex for serde, because we can't save data with '.' in it...
-static VERSION_REGEX_STRING_SERDE : &str = r"([0-9]+|\*)(?:_([0-9]+|\*))?(?:_([0-9]+|\*))?";
 
 #[derive(Hash)]
 pub struct Version {
@@ -129,62 +123,39 @@ impl Version {
     //
     // the regex is automatically surrounded with `^` and `$` meaning that it will 
     // only match if it matches the entire string.
-    pub fn from_str_with(version : &str, regex_string : &str) -> Option<Version> {
-        // TODO : need to wrap this up in an OK or ERROR so we know if the regex fails
-        //        or not. since i use this all privately i know that the regex strings
-        //        are valid, but if the user wants to parse a string differently then
-        //        they might get frustrated becaues they don't know if its failing or
-        //        if the regex can't be created.
-        let re = Regex::new(&format!("^{}$",regex_string)).unwrap();
-        /*let re = match Regex::new(regex_string) {
-            Ok(regex) => regex,
-            Err(_) => {
-                return None
-            }
-        };*/
-
+    pub fn from_str_with(version : &str, version_string_splitter : &str) -> Option<Version> {
+        
         let mut parts : Vec<VersionPart> = Vec::new();
 
-        for caps in re.captures_iter(version) {
-            // all versions supported are only of 3 parts, so we will only 
-            // match up to 3.
-            for i in 1..caps.len() {
-                match caps.get(i) {
-                    None => {
-                        // with the new regex pattern, none means that there was no capture, so since the regex
-                        // is very strict, a no match means 
-                    },
-                    Some(a_match) => match a_match.as_str().parse::<u8>() {
-                        Err(_) => {
-                            // its not a number, so if it passes the regex part it must be a wildcard
-                            parts.push(VersionPart::Wildcard(a_match.as_str().to_string()));
-        
-                            // if it matches a wild card it will ignore everything afterwards.
-                            return Some(Version{
-                                parts : parts
-                            });
-                        },
-                        Ok(number) => {
-                            // is a number, so an actual version number
-                            parts.push(VersionPart::Number(number));
-                        }
+        for section in version.split(version_string_splitter) {
+            match section.parse::<u8>() {
+                Ok(number) => parts.push(VersionPart::Number(number)),
+                Err(_) => {
+                    // not a number so could be a wildcard??
+                    if section == "*" {
+                        parts.push(VersionPart::Wildcard(String::from(section)));
+                        
+                        // we ignore the rest of the string, so we just return this
+                        return Some(Version { parts });
+                    }
+                    else {
+                        // this isn't a version string then.
+                        return None;
                     }
                 }
             }
         }
 
-        if parts.len() > 0 { 
-            Some(Version{ 
-                parts : parts 
-            }) 
-        } else { 
-            None 
+        match parts.len() {
+            0 => None,
+            _ => Some(Version { parts })
         }
+
     }
 
     /// creates a version from a string
     pub fn from_str(version : &str) -> Option<Version> {
-        Version::from_str_with(version, VERSION_REGEX_STRING)
+        Version::from_str_with(version, ".")
     }
 
     /// creates a disconnected copy
@@ -379,7 +350,7 @@ impl <'de>serde::de::Visitor<'de> for VersionVisitor {
     {
         use serde::de::{Error, Unexpected};
 
-        if let Some(version) = Version::from_str_with(string, VERSION_REGEX_STRING_SERDE) { 
+        if let Some(version) = Version::from_str_with(string, "_") { 
             Ok(version) 
         } else { 
             Err(Error::invalid_value(Unexpected::Str(string), &self)) 
@@ -475,12 +446,11 @@ mod tests {
             Version::from_str("1.0.1").unwrap(),
             Version::from_str("1.0.2").unwrap(),
             Version::from_str("1.1.0").unwrap(),
-            Version::from_str("2.3.443").unwrap()
+            Version::from_str("2.3.132").unwrap()
         ];
 
         let version = Version::from_str("1.*.*").unwrap();
-
-        // assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
+        assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
         assert_eq!(Version::new(&[1]).latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
     }
 
@@ -538,7 +508,7 @@ mod tests {
 
     #[test]
     fn version_parse_serde() {
-        let version = super::Version::from_str_with("0_1_2", VERSION_REGEX_STRING_SERDE).unwrap();
+        let version = super::Version::from_str_with("0_1_2", "_").unwrap();
         assert_eq!(version, super::Version::new(&[0,1,2]));
     }
 
@@ -550,6 +520,7 @@ mod tests {
         assert_eq!(super::Version::from_str("1.1.132").unwrap(), super::Version::new(&[1,1,132]));
         assert_eq!(super::Version::from_str("0.0.2").unwrap(), super::Version::new(&[0,0,2]));
         assert_eq!(super::Version::from_str("0132.1.2").unwrap(), super::Version::new(&[132,1,2]));
+        assert_eq!(super::Version::from_str("1.2.3.12.123.231.111").unwrap(), super::Version::new(&[1,2,3,12,123,231,111]));
         assert_eq!(super::Version::from_str("1.2").unwrap(), super::Version::new(&[1,2]));
         assert_eq!(super::Version::from_str("1").unwrap(), super::Version::new(&[1]));
     }
