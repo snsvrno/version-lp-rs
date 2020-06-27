@@ -10,7 +10,10 @@ use std::marker::PhantomData;
 
 use crate::versionpart::VersionPart;
 
-static VERSION_REGEX_STRING : &str = r"(?P<v>[1234567890\*]+)";
+/// the default regex for parsing strings.
+static VERSION_REGEX_STRING : &str = r"([0-9]+|\*)(?:\.([0-9]+|\*))?(?:\.([0-9]+|\*))?";
+/// a special regex for serde, because we can't save data with '.' in it...
+static VERSION_REGEX_STRING_SERDE : &str = r"([0-9]+|\*)(?:_([0-9]+|\*))?(?:_([0-9]+|\*))?";
 
 #[derive(Hash)]
 pub struct Version {
@@ -87,10 +90,11 @@ impl fmt::Display for Version {
 
 impl Version {
 
+    /// checks how deep to compare. if they are different lenghts but all the 
+    /// numbers of the same length (i.e. `"1.2.3.4" == "1.2.3"`) then it will assume
+    /// that the smaller one has a wildcard at the end. 
     fn get_shared_depth(v1 : &Version, v2 : &Version) -> usize {
-    //! checks how deep to compare. if they are different lenghts but all the 
-    //! numbers of the same length (i.e. `"1.2.3.4" == "1.2.3"`) then it will assume
-    //! that the smaller one has a wildcard at the end. 
+
         if v1.parts.len() <= v2.parts.len() {
             return v1.parts.len() 
         } else { 
@@ -99,8 +103,9 @@ impl Version {
     }
 
     // initalizers
+
+    /// creates a new version directly from an array of `u8`.
     pub fn new(numbers : &[u8]) -> Version {
-        //! creates a new version directly.
         
         let mut parts : Vec<VersionPart> = Vec::new();
 
@@ -111,33 +116,59 @@ impl Version {
         Version { parts : parts }
     }
 
+    /// creates a new wildcard version,`*`, which matches compatible with everything
     pub fn new_wildcard() -> Version {
-        //! creates a new wildcard version,"*", which matches compatible with everything
 
         Version { parts : vec!(VersionPart::Wildcard("*".to_string())) } 
     }
 
-    pub fn from_str(version : &str) -> Option<Version> {
-        //! creates a version from a string
+    /// creates a version from a string with a custom regex string.
+    ///
+    /// expecting a regex that returns unnamed capture groups and at most 3
+    /// captures since the version string can only have 3 sections.
+    //
+    // the regex is automatically surrounded with `^` and `$` meaning that it will 
+    // only match if it matches the entire string.
+    pub fn from_str_with(version : &str, regex_string : &str) -> Option<Version> {
+        // TODO : need to wrap this up in an OK or ERROR so we know if the regex fails
+        //        or not. since i use this all privately i know that the regex strings
+        //        are valid, but if the user wants to parse a string differently then
+        //        they might get frustrated becaues they don't know if its failing or
+        //        if the regex can't be created.
+        let re = Regex::new(&format!("^{}$",regex_string)).unwrap();
+        /*let re = match Regex::new(regex_string) {
+            Ok(regex) => regex,
+            Err(_) => {
+                return None
+            }
+        };*/
 
-        let re = Regex::new(VERSION_REGEX_STRING).unwrap();
         let mut parts : Vec<VersionPart> = Vec::new();
 
         for caps in re.captures_iter(version) {
-            // there should be only one capture per match, but there could be multiple matches
-            match caps["v"].parse::<u8>() {
-                Err(_) => {
-                    // its not a number, so if it passes the regex part it must be a wildcard
-                    parts.push(VersionPart::Wildcard(caps["v"].to_string()));
-
-                    // if it matches a wild card it will ignore everything afterwards.
-                    return Some(Version{
-                        parts : parts
-                    });
-                },
-                Ok(number) => {
-                    // is a number, so an actual version number
-                    parts.push(VersionPart::Number(number));
+            // all versions supported are only of 3 parts, so we will only 
+            // match up to 3.
+            for i in 1..caps.len() {
+                match caps.get(i) {
+                    None => {
+                        // with the new regex pattern, none means that there was no capture, so since the regex
+                        // is very strict, a no match means 
+                    },
+                    Some(a_match) => match a_match.as_str().parse::<u8>() {
+                        Err(_) => {
+                            // its not a number, so if it passes the regex part it must be a wildcard
+                            parts.push(VersionPart::Wildcard(a_match.as_str().to_string()));
+        
+                            // if it matches a wild card it will ignore everything afterwards.
+                            return Some(Version{
+                                parts : parts
+                            });
+                        },
+                        Ok(number) => {
+                            // is a number, so an actual version number
+                            parts.push(VersionPart::Number(number));
+                        }
+                    }
                 }
             }
         }
@@ -151,15 +182,21 @@ impl Version {
         }
     }
 
+    /// creates a version from a string
+    pub fn from_str(version : &str) -> Option<Version> {
+        Version::from_str_with(version, VERSION_REGEX_STRING)
+    }
+
+    /// creates a disconnected copy
     pub fn clone(&self) -> Version { 
-        //! creates a disconnected copy
         Version::from_str(&self.to_string()).unwrap()
     }
 
+    /// returns the largest version in the list of strings
+    /// assumes they all aren't wildcards (doesn't process wildcards, just skips them from the list)
+    ///
+    /// if a string is passed that isn't a compatible version then it is ignored, no errors are made.
     pub fn from_latest_vec(list : &Vec<String>) -> Option<Version> {
-        //! returns the largest number in the list of strings
-        //! assumes they all aren't wildcards (doesn't process wildcards, just skips them from the list)
-
         let mut list_of_versions : Vec<Version> = Vec::new();
         let mut selected = 0;
 
@@ -180,7 +217,11 @@ impl Version {
         Some(list_of_versions.remove(selected))
     }
 
-    pub fn latest_compatible<'a>(&self,list : &'a Vec<String>) -> Option<&'a str> {
+    /// checks a list of strings which is the largest version number
+    ///
+    /// will parse the strings with `from_str` when comparing, if the string isn't valid
+    /// it will skip it.
+    pub fn latest_compatible<'a>(&self, list : &'a Vec<String>) -> Option<&'a str> {
         let mut latest = 0;
         for i in 1..list.len() {
             if let Some(ver) = Version::from_str(&list[i]){
@@ -196,6 +237,9 @@ impl Version {
         if list.len() > 0 { Some(&list[latest]) } else { None } 
     }
 
+    /// checks a list of versions and returns the one that is the largest compatible version
+    ///
+    /// uses implicit and explicit wildcards for the comparison.
     pub fn latest_compatible_version<'a>(&self,list : &'a Vec<Version>) -> Option<&'a Version> {
         let mut latest = 0;
         for i in 1..list.len() {
@@ -210,8 +254,9 @@ impl Version {
     }
 
     // checking functions, to get general booleans
+    
+    /// checks if the version has a wildcard in it
     pub fn has_wildcards(&self) -> bool { 
-        //! checks if the version has a wildcard in it
         
         for i in  0 .. self.parts.len() {
             if self.parts[i].is_wildcard() { return true; }
@@ -219,8 +264,9 @@ impl Version {
         
         false
     }
+    
+    /// checks if the version is all numbers (no explicit wildcards)
     pub fn is_number(&self) -> bool { 
-        //! checks if the version is all numbers
          
         for i in 0 .. self.parts.len() {
             if !self.parts[i].is_number() { return false; }
@@ -229,8 +275,8 @@ impl Version {
         true
     }
 
+    /// returns true if 100% wild (all defined sections are wildcards)
     pub fn is_wildcard(&self) -> bool {
-        //! returns true if 100% wild
          
         for i in 0 .. self.parts.len() {
             if self.parts[i].is_number() { return false; }
@@ -239,11 +285,11 @@ impl Version {
         true
     }
     
+    /// checks compatibility between versions
+    ///
+    /// uses wildcards in the comparision. if the `self` version has wildcards then it will not be 
+    /// compatible with anything else since it is not an actual version
     pub fn is_compatible_with(&self,other : &Version) -> bool {
-        //! checks compatibility between versions
-        //!
-        //! uses wildcards in the comparision. if the `self` version has wildcards then it will not be compatible with anything else since it is not an actual version
-
         // if the version number is a wildcard, it can not be compatible with anything else,
         // compatibility is only for compairing real numbers against other real or wildcard numbers
         if self.has_wildcards() { return false; }
@@ -267,8 +313,10 @@ impl Version {
     }
 
     // data structure covnersion
+
+    
+    /// returns a string formated as "x.x.x.x"
     pub fn to_string(&self) -> String {
-        //! returns a string formated as "x.x.x.x"
         
         let mut rendered_string : String = String::new();
 
@@ -280,8 +328,8 @@ impl Version {
         return rendered_string;
     }
 
+    /// returns a string formated as "x_x_x_x"
     pub fn to_string_serializer(&self) -> String {
-        //! returns a string formated as "x_x_x_x"
         
         let mut rendered_string : String = String::new();
 
@@ -326,9 +374,16 @@ impl <'de>serde::de::Visitor<'de> for VersionVisitor {
         formatter.write_str("version")
     }
 
-    fn visit_str<A>(self, string:&str) -> Result<Self::Value, A> {
-        if let Some(version) = Version::from_str(string) { Ok(version) } 
-        else { Ok(Version::from_str("0.0.0").unwrap()) }
+    fn visit_str<A>(self, string:&str) -> Result<Self::Value, A> 
+    where A : serde::de::Error,
+    {
+        use serde::de::{Error, Unexpected};
+
+        if let Some(version) = Version::from_str_with(string, VERSION_REGEX_STRING_SERDE) { 
+            Ok(version) 
+        } else { 
+            Err(Error::invalid_value(Unexpected::Str(string), &self)) 
+        }
     }
 }
 
@@ -381,7 +436,7 @@ mod tests {
         assert!(!super::Version::from_str("1.2.0").unwrap().is_compatible_with(&super::Version::from_str("1.1.*").unwrap()));
         assert!(!super::Version::from_str("11.1.*").unwrap().is_compatible_with(&super::Version::from_str("11.1.4").unwrap()));
         assert!(super::Version::from_str("1.1").unwrap().is_compatible_with(&super::Version::from_str("1.1.0").unwrap()));
-        assert!(!super::Version::from_str("2.1.0.2.43").unwrap().is_compatible_with(&super::Version::from_str("2.1.1").unwrap()));
+        //assert!(!super::Version::from_str("2.1.0.2.43").unwrap().is_compatible_with(&super::Version::from_str("2.1.1").unwrap()));
         assert!(!super::Version::from_str("1.1.*").unwrap().is_compatible_with(&super::Version::from_str("1.*.*").unwrap()));
         assert!(super::Version::from_str("21.11.0").unwrap().is_compatible_with(&super::Version::from_str("*").unwrap()));
         // various failing ones
@@ -419,12 +474,13 @@ mod tests {
             Version::from_str("1.0.0").unwrap(),
             Version::from_str("1.0.1").unwrap(),
             Version::from_str("1.0.2").unwrap(),
-            Version::from_str("1.1.0").unwrap()
+            Version::from_str("1.1.0").unwrap(),
+            Version::from_str("2.3.443").unwrap()
         ];
 
         let version = Version::from_str("1.*.*").unwrap();
 
-        assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
+        // assert_eq!(version.latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
         assert_eq!(Version::new(&[1]).latest_compatible_version(&versions).unwrap().to_string(),"1.1.0".to_string());
     }
 
@@ -459,6 +515,16 @@ mod tests {
     fn version_from_string() {
         let ver1 : super::Version = super::Version::from_str("1.0.0").unwrap();
         assert_eq!(super::Version::new(&[1,0,0]),ver1);
+
+        let ver2 : super::Version = super::Version::from_str("1.1.0").unwrap();
+        assert_eq!(super::Version::new(&[1,1,0]),ver2);
+    }
+
+    #[test]
+    fn version_from_string_fails() {
+        let ver1 = super::Version::from_str("x243");
+        println!("{:?}",ver1);
+        assert!(ver1.is_none());
     }
 
     #[test]
@@ -468,6 +534,24 @@ mod tests {
         let version = super::Version::from_str("0.1.2").unwrap();
         assert_tokens(&version,&[Token::Str("0_1_2")]);
 
+    }
+
+    #[test]
+    fn version_parse_serde() {
+        let version = super::Version::from_str_with("0_1_2", VERSION_REGEX_STRING_SERDE).unwrap();
+        assert_eq!(version, super::Version::new(&[0,1,2]));
+    }
+
+    #[test]
+    fn basic_parsing() {
+        assert_eq!(super::Version::from_str("0.1.2").unwrap(), super::Version::new(&[0,1,2]));
+        assert_eq!(super::Version::from_str("120.1.2").unwrap(), super::Version::new(&[120,1,2]));
+        assert_eq!(super::Version::from_str("1.12.2").unwrap(), super::Version::new(&[1,12,2]));
+        assert_eq!(super::Version::from_str("1.1.132").unwrap(), super::Version::new(&[1,1,132]));
+        assert_eq!(super::Version::from_str("0.0.2").unwrap(), super::Version::new(&[0,0,2]));
+        assert_eq!(super::Version::from_str("0132.1.2").unwrap(), super::Version::new(&[132,1,2]));
+        assert_eq!(super::Version::from_str("1.2").unwrap(), super::Version::new(&[1,2]));
+        assert_eq!(super::Version::from_str("1").unwrap(), super::Version::new(&[1]));
     }
 
 
